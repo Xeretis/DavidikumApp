@@ -1,0 +1,16 @@
+@import '/vendor/filament/filament/resources/css/theme.css';
+
+@config 'tailwind.config.js';
+
+#impersonate-banner {
+    z-index: 21 !important;
+}
+
+div.fi-layout > aside.fi-sidebar {
+    padding-top: 0 !important;
+    position: fixed;
+}
+
+.fi-topbar {
+    position: unset !important;
+}
