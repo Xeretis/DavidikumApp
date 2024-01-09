@@ -4,6 +4,7 @@ namespace App\Filament\Admin\Resources;
 
 use App\Filament\Admin\Resources\MealCancellationResource\Pages;
 use App\Filament\Admin\Resources\MealCancellationResource\RelationManagers;
+use App\Filament\Admin\Resources\UserResource\Pages\ViewUser;
 use App\Models\Enums\MealType;
 use App\Models\MealCancellation;
 use Carbon\CarbonPeriod;
@@ -16,12 +17,12 @@ use Filament\Infolists\Components\TextEntry;
 use Filament\Infolists\Infolist;
 use Filament\Resources\Pages\Page;
 use Filament\Resources\Resource;
-use Filament\Support\Enums\FontWeight;
 use Filament\Support\Enums\MaxWidth;
 use Filament\Tables;
 use Filament\Tables\Filters\QueryBuilder\Constraints\RelationshipConstraint\Operators\IsRelatedToOperator;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 
 class MealCancellationResource extends Resource
@@ -115,15 +116,19 @@ class MealCancellationResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('requester.name')
                     ->label('Lemondás kezdeményezője')
-                    ->weight(FontWeight::Bold)
                     ->color('danger')
+                    ->icon('heroicon-o-user-circle')
+                    ->badge()
+                    ->url(fn(MealCancellation $record) => ViewUser::getUrl([$record->requester_id]))
                     ->sortable()
                     ->searchable(),
                 Tables\Columns\TextColumn::make('handler.name')
                     ->label('Lemondás kezelője')
-                    ->weight(FontWeight::Bold)
                     ->color('success')
+                    ->icon('heroicon-o-user-circle')
+                    ->badge()
                     ->placeholder('Nincs kezelve')
+                    ->url(fn(MealCancellation $record) => ViewUser::getUrl([$record->handler_id]))
                     ->sortable()
                     ->searchable(),
                 Tables\Columns\TextColumn::make('created_at')
@@ -188,6 +193,11 @@ class MealCancellationResource extends Resource
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\BulkAction::make('handle')
+                        ->label('Megjelölés kezeltként')
+                        ->icon('heroicon-o-check')
+                        ->requiresConfirmation()
+                        ->action(fn(Collection $records) => $records->each->update(['handler_id' => auth()->id()]))
                 ]),
             ])->modifyQueryUsing(fn($query) => $query->with(['requester', 'handler']));
     }
@@ -214,12 +224,16 @@ class MealCancellationResource extends Resource
                         Section::make([
                             TextEntry::make('requester.name')
                                 ->label('Lemondás kezdeményezője')
-                                ->weight(FontWeight::Bold)
-                                ->color('danger'),
+                                ->color('danger')
+                                ->badge()
+                                ->icon('heroicon-o-user-circle')
+                                ->url(fn(MealCancellation $record) => ViewUser::getUrl([$record->requester_id])),
                             TextEntry::make('handler.name')
                                 ->label('Lemondás kezelője')
-                                ->weight(FontWeight::Bold)
                                 ->color('success')
+                                ->badge()
+                                ->icon('heroicon-o-user-circle')
+                                ->url(fn(MealCancellation $record) => ViewUser::getUrl([$record->handler_id]))
                                 ->placeholder('Nincs kezelve'),
                         ])->columns(),
                     ])->grow(),
