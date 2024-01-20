@@ -22,4 +22,15 @@ enum MealType: string implements HasLabel
             self::Dinner => 'Vacsora',
         };
     }
+
+    public function getSortOrder(): int
+    {
+        return match ($this) {
+            self::Breakfast => 1,
+            self::MorningSnack => 2,
+            self::Lunch => 3,
+            self::AfternoonSnack => 4,
+            self::Dinner => 5,
+        };
+    }
 }

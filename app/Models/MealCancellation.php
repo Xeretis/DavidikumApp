@@ -16,6 +16,7 @@ class MealCancellation extends Model
         'meals',
         'start_date',
         'end_date',
+        'handled_until',
         'requester_id',
         'handler_id',
     ];
@@ -24,6 +25,7 @@ class MealCancellation extends Model
         'meals' => AsEnumCollection::class . ':' . MealType::class,
         'start_date' => 'date',
         'end_date' => 'date',
+        'handled_until' => 'date',
     ];
 
     public function requester(): BelongsTo

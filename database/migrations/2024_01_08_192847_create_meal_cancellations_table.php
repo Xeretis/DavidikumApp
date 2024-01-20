@@ -11,9 +11,11 @@ return new class extends Migration {
         Schema::create('meal_cancellations', function (Blueprint $table) {
             $table->id();
             $table->string('meals');
-            
+
             $table->date('start_date');
             $table->date('end_date');
+
+            $table->date('handled_until')->nullable();
 
             $table->foreignIdFor(User::class, 'requester_id')->constrained('users')->cascadeOnDelete();
             $table->foreignIdFor(User::class, 'handler_id')->nullable()->constrained('users')->cascadeOnDelete();

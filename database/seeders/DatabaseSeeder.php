@@ -3,6 +3,8 @@
 namespace Database\Seeders;
 
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Models\MealCancellation;
+use App\Models\User;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -12,11 +14,16 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // \App\Models\User::factory(10)->create();
+        User::factory(1)->create([
+            'name' => 'admin',
+            'email' => 'admin@test.test',
+            'is_admin' => true,
+        ]);
 
-        // \App\Models\User::factory()->create([
-        //     'name' => 'Test User',
-        //     'email' => 'test@example.com',
-        // ]);
+        User::factory(20)->unverified()->create();
+        User::factory(3)->unverified()->admin()->create();
+
+        MealCancellation::factory(50)->create();
+        MealCancellation::factory(10)->unhandled()->create();
     }
 }

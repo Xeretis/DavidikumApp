@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\MealCancellation;
 use App\Models\User;
+use App\Settings\MealSettings;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 class MealCancellationPolicy
@@ -12,7 +13,7 @@ class MealCancellationPolicy
 
     public function viewAny(User $user): bool
     {
-        return $user->is_admin;
+        return true;
     }
 
     public function view(User $user, MealCancellation $mealCancellation): bool
@@ -22,12 +23,12 @@ class MealCancellationPolicy
 
     public function create(User $user): bool
     {
-        return true;
+        return app(MealSettings::class)->is_meal_cancellation_enabled;
     }
 
     public function update(User $user, MealCancellation $mealCancellation): bool
     {
-        return $user->is_admin || $user->id === $mealCancellation->requester_id;
+        return $user->is_admin || ($user->id === $mealCancellation->requester_id && $mealCancellation->handled_until !== $mealCancellation->end_date && app(MealSettings::class)->is_meal_cancellation_enabled);
     }
 
     public function delete(User $user, MealCancellation $mealCancellation): bool

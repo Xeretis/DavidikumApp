@@ -1,19 +1,18 @@
 <?php
 
-namespace App\Filament\Admin\Resources;
+namespace App\Filament\User\Resources;
 
-use App\Filament\Admin\Resources\MealCancellationResource\Pages;
-use App\Filament\Admin\Resources\MealCancellationResource\RelationManagers;
-use App\Filament\Admin\Resources\MealCancellationResource\Widgets\AmountToOrder;
-use App\Filament\Admin\Resources\MealCancellationResource\Widgets\MealCancellationsOverview;
-use App\Filament\Admin\Resources\MealCancellationResource\Widgets\UnhandledMealCancellations;
-use App\Filament\Admin\Resources\UserResource\Pages\ViewUser;
+use App\Filament\User\Resources\MealCancellationResource\Pages;
+use App\Filament\User\Resources\MealCancellationResource\RelationManagers;
+use App\Filament\User\Resources\MealCancellationResource\Widgets\CreateMealCancellation;
 use App\Models\Enums\MealType;
 use App\Models\MealCancellation;
 use App\Rules\AfterMealCancellationDeadlineRule;
 use Carbon\CarbonPeriod;
-use Filament\Forms;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Infolists\Components\Grid;
 use Filament\Infolists\Components\Section;
 use Filament\Infolists\Components\Split;
@@ -26,9 +25,7 @@ use Filament\Tables;
 use Filament\Tables\Filters\QueryBuilder\Constraints\RelationshipConstraint\Operators\IsRelatedToOperator;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Cache;
 
 class MealCancellationResource extends Resource
 {
@@ -38,9 +35,7 @@ class MealCancellationResource extends Resource
 
     protected static ?string $modelLabel = 'étkezés lemondás';
     protected static ?string $pluralModelLabel = 'Étkezés lemondások';
-    protected static ?string $navigationGroup = 'Étkeztetés';
-    protected static ?int $navigationSort = 10;
-
+    
     public static function form(Form $form): Form
     {
         $startDate = Carbon::now();
@@ -55,58 +50,40 @@ class MealCancellationResource extends Resource
             }
         }
 
-
         return $form
             ->schema([
-                Forms\Components\Section::make([
-                    Forms\Components\Select::make('meals')
-                        ->label('Érintett étkezések')
-                        ->multiple()
-                        ->options(MealType::class)
-                        ->selectablePlaceholder(false)
-                        ->required()
-                        ->columnSpan(2),
-                    Forms\Components\Datepicker::make('start_date')
-                        ->label('Lemondás kezdete')
-                        ->date()
-                        ->native(false)
-                        ->required()
-                        ->disabledDates($weekendDays)
-                        ->minDate(today())
-                        ->maxDate(now()->addMonth())
-                        ->rules([fn(Forms\Get $get) => new AfterMealCancellationDeadlineRule($get('end_date'))]),
-                    Forms\Components\Datepicker::make('end_date')
-                        ->label('Lemondás vége')
-                        ->date()
-                        ->native(false)
-                        ->required()
-                        ->minDate(today())
-                        ->afterOrEqual('start_date'),
-                    Forms\Components\DatePicker::make('handled_until')
-                        ->label('Kezelve eddig')
-                        ->helperText('Ha megjelölöd ezt a lemondást kezeltként és ezt a mezőt üresen hagyod, akkor ez automatikusan a mai nap lesz.')
-                        ->date()
-                        ->native(false)
-                        ->disabled(fn(Forms\Get $get) => $get('is_handled') === false)
-                        ->afterOrEqual('start_date')
-                        ->beforeOrEqual('end_date')
-                        ->columnSpan(2),
-                ])->columns(),
-                Forms\Components\Section::make([
-                    Forms\Components\Select::make('requester_id')
-                        ->label('Lemondás kezdeményezője')
-                        ->relationship('requester', 'name', modifyQueryUsing: fn($query) => $query->where('is_admin', false))
-                        ->preload()
-                        ->searchable()
-                        ->required(),
-                    Forms\Components\Toggle::make('is_handled')
-                        ->label('Lemondás kezelve')
-                        ->hint('(általad)')
-                        ->inline(false)
-                        ->required()
-                        ->live(),
-
-                ])->columns()
+                Select::make('meals')
+                    ->label('Érintett étkezések')
+                    ->multiple()
+                    ->options(MealType::class)
+                    ->selectablePlaceholder(false)
+                    ->required()
+                    ->disabled(fn(Get $get) => $get('handled_until') !== null)
+                    ->columnSpan(2),
+                Datepicker::make('start_date')
+                    ->label('Lemondás kezdete')
+                    ->date()
+                    ->native(false)
+                    ->required()
+                    ->disabled(fn(Get $get) => $get('handled_until') !== null)
+                    ->disabledDates($weekendDays)
+                    ->minDate(today())
+                    ->maxDate(now()->addMonth())
+                    ->rules([fn(Get $get) => new AfterMealCancellationDeadlineRule($get('end_date'))]),
+                Datepicker::make('end_date')
+                    ->label('Lemondás vége')
+                    ->date()
+                    ->native(false)
+                    ->required()
+                    ->minDate(today())
+                    ->afterOrEqual('start_date')
+                    ->afterOrEqual('handled_until'),
+                DatePicker::make('handled_until')
+                    ->label('Kezelve eddig')
+                    ->disabled()
+                    ->validationAttribute('a \'Kezelve eddig\' értéke')
+                    ->columnSpan(2)
+                    ->hidden(fn(Get $get) => $get('handled_until') === null),
             ]);
     }
 
@@ -123,18 +100,26 @@ class MealCancellationResource extends Resource
                     ->label('Lemondás kezdete')
                     ->date()
                     ->sortable()
-                    ->searchable(),
+                    ->searchable()
+                    ->visibleFrom('md'),
                 Tables\Columns\TextColumn::make('end_date')
                     ->label('Lemondás vége')
                     ->date()
                     ->sortable()
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('requester.name')
-                    ->label('Lemondás kezdeményezője')
-                    ->color('danger')
+                    ->searchable()
+                    ->visibleFrom('md'),
+                Tables\Columns\TextColumn::make('date_range')
+                    ->state(fn($record) => $record->start_date->format('Y. m. d.') . ' - ' . $record->end_date->format('Y. m. d.'))
+                    ->label('Lemondás időtartama')
+                    ->sortable()
+                    ->searchable()
+                    ->hiddenFrom('md'),
+                Tables\Columns\TextColumn::make('handler.name')
+                    ->label('Lemondás kezelője')
+                    ->color('success')
                     ->icon('heroicon-o-user-circle')
                     ->badge()
-                    ->url(fn(MealCancellation $record) => ViewUser::getUrl([$record->requester_id]))
+                    ->placeholder('Nincs kezelve')
                     ->sortable()
                     ->searchable(),
                 Tables\Columns\TextColumn::make('handled_until')
@@ -142,16 +127,6 @@ class MealCancellationResource extends Resource
                     ->placeholder('Nincs kezelve')
                     ->date()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('handler.name')
-                    ->label('Lemondás kezelője')
-                    ->color('success')
-                    ->icon('heroicon-o-user-circle')
-                    ->badge()
-                    ->placeholder('Nincs kezelve')
-                    ->url(fn(?MealCancellation $record) => $record->handler_id !== null ? ViewUser::getUrl([$record->handler_id]) : null)
-                    ->sortable()
-                    ->searchable()
-                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Létrehozva')
                     ->dateTime()
@@ -228,24 +203,17 @@ class MealCancellationResource extends Resource
             ])
             ->filtersFormWidth(MaxWidth::Large)
             ->actions([
-                Tables\Actions\ViewAction::make()->label('Részletek')->icon('heroicon-m-information-circle')->color('primary'),
-                Tables\Actions\DeleteAction::make()->after(fn() => Cache::forget('unhandled-by-meal')),
-
+                Tables\Actions\ViewAction::make()->label('Kezelés')->icon('heroicon-m-wrench-screwdriver')->color('primary'),
+                Tables\Actions\DeleteAction::make()->disabled(fn($record) => $record->handled_until !== null)
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make()->after(fn() => Cache::forget('unhandled-by-meal')),
-                    Tables\Actions\BulkAction::make('handle')
-                        ->label('Megjelölés kezeltként')
-                        ->icon('heroicon-o-check')
-                        ->requiresConfirmation()
-                        ->action(function (Collection $records) {
-                            $records->each->update(['handler_id' => auth()->id(), 'handled_until' => today()]);
-
-                            Cache::forget('unhandled-by-meal');
-                        })
+                    Tables\Actions\DeleteBulkAction::make(),
                 ]),
-            ])->modifyQueryUsing(fn($query) => $query->with(['requester:id,name', 'handler:id,name']))
+            ])
+            ->modifyQueryUsing(function (Builder $query) {
+                $query->where('requester_id', auth()->id())->with('handler:id,name');
+            })
             ->defaultSort('created_at', 'desc');
     }
 
@@ -260,32 +228,26 @@ class MealCancellationResource extends Resource
                         Section::make([
                             TextEntry::make('meals')
                                 ->label('Érintett étkezések')
-                                ->badge(),
+                                ->badge()
+                                ->columnSpan(2),
                             TextEntry::make('start_date')
                                 ->label('Lemondás kezdete')
                                 ->date(),
                             TextEntry::make('end_date')
                                 ->label('Lemondás vége')
                                 ->date(),
-                            TextEntry::make('handled_until')
-                                ->label('Kezelve eddig')
-                                ->placeholder('Nincs kezelve')
-                                ->date(),
                         ])->columns(),
                         Section::make([
-                            TextEntry::make('requester.name')
-                                ->label('Lemondás kezdeményezője')
-                                ->color('danger')
-                                ->badge()
-                                ->icon('heroicon-o-user-circle')
-                                ->url(fn(MealCancellation $record) => ViewUser::getUrl([$record->requester_id])),
                             TextEntry::make('handler.name')
                                 ->label('Lemondás kezelője')
                                 ->color('success')
                                 ->badge()
                                 ->icon('heroicon-o-user-circle')
-                                ->url(fn(?MealCancellation $record) => $record->handler_id !== null ? ViewUser::getUrl([$record->handler_id]) : null)
                                 ->placeholder('Nincs kezelve'),
+                            TextEntry::make('handled_until')
+                                ->label('Kezelve eddig')
+                                ->placeholder('Nincs kezelve')
+                                ->date(),
                         ])->columns(),
                     ])->grow(),
                     Section::make([
@@ -307,12 +269,18 @@ class MealCancellationResource extends Resource
         ];
     }
 
+    public static function getRecordSubNavigation(Page $page): array
+    {
+        return $page->generateNavigationItems([
+            Pages\ViewMealCancellation::class,
+            Pages\EditMealCancellation::class,
+        ]);
+    }
+
     public static function getWidgets(): array
     {
         return [
-            AmountToOrder::class,
-            MealCancellationsOverview::class,
-            UnhandledMealCancellations::class
+            CreateMealCancellation::class,
         ];
     }
 
@@ -320,17 +288,8 @@ class MealCancellationResource extends Resource
     {
         return [
             'index' => Pages\ListMealCancellations::route('/'),
-            'create' => Pages\CreateMealCancellation::route('/create'),
             'view' => Pages\ViewMealCancellation::route('/{record}'),
             'edit' => Pages\EditMealCancellation::route('/{record}/edit'),
         ];
-    }
-
-    public static function getRecordSubNavigation(Page $page): array
-    {
-        return $page->generateNavigationItems([
-            Pages\ViewMealCancellation::class,
-            Pages\EditMealCancellation::class,
-        ]);
     }
 }

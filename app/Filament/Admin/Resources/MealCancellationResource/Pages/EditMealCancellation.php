@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Resources\MealCancellationResource\Pages;
 use App\Filament\Admin\Resources\MealCancellationResource;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Support\Facades\Cache;
 
 class EditMealCancellation extends EditRecord
 {
@@ -29,15 +30,25 @@ class EditMealCancellation extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        if ($data['is_handled'])
+        if ($data['is_handled']) {
             $data['handler_id'] = auth()->id();
-        else
+            if (!isset($data['handled_until'])) {
+                $data['handled_until'] = today();
+            }
+        } else {
             $data['handler_id'] = null;
+            $data['handled_until'] = null;
+        }
 
         unset($data['is_handled']);
 
         $data['meals'] = collect($data['meals']);
 
         return $data;
+    }
+
+    protected function afterSave()
+    {
+        Cache::forget('unhandled-by-meal');
     }
 }
