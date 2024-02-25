@@ -25,7 +25,7 @@ class CommonPanelProvider extends PanelProvider
         return $panel
             ->default()
             ->id('common')
-            ->path('common')
+            ->path('/')
             ->colors([
                 'primary' => Color::Amber,
             ])

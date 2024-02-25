@@ -3,8 +3,10 @@
 namespace App\Filament\Admin\Resources\MealCancellationResource\Pages;
 
 use App\Filament\Admin\Resources\MealCancellationResource;
+use App\Filament\Exports\MealCancellationExporter;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
+use Illuminate\Database\Eloquent\Builder;
 use Livewire\Attributes\On;
 
 class  ListMealCancellations extends ListRecords
@@ -19,6 +21,9 @@ class  ListMealCancellations extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
+            Actions\ExportAction::make()->label('Exportálás')->exporter(MealCancellationExporter::class)->modifyQueryUsing(function (Builder $query) {
+                return $query->with(['requester:id,name', 'handler:id,name'])->reorder();
+            }),
             Actions\CreateAction::make(),
         ];
     }

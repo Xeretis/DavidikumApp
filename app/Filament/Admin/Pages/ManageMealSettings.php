@@ -83,7 +83,7 @@ class ManageMealSettings extends SettingsPage
                                 if ($state <= 24)
                                     return 'Így az étkezés lemondható előző nap ' . 24 - $state . ' óráig.';
                                 else
-                                    return 'Így az étkezés lemondható ' . (int)($state / 24) + 1 . ' nappal előbb ' . 24 - ($state % 24) . ' óráig.';
+                                    return 'Így az étkezés lemondható ' . floor($state / 24) + 1 . ' nappal előbb ' . 24 - ($state % 24) . ' óráig.';
                             })
                             ->live()
                             ->numeric()
